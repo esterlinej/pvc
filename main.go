@@ -1,0 +1,178 @@
+package pvc
+
+import "fmt"
+
+type SecretsClient struct {
+	backend secretBackend
+}
+
+func (sc *SecretsClient) Get(secret *SecretDefinition) ([]byte, error) {
+	return sc.backend.Get(secret)
+}
+
+type secretBackend interface {
+	Get(secret *SecretDefinition) ([]byte, error)
+}
+
+type SecretDefinition struct {
+	ID         string
+	VaultPath  string
+	EnvVarName string
+	JSONKey    string
+}
+
+type vaultBackend struct {
+	host               string
+	authentication     VaultAuthentication
+	authRetries        uint
+	authRetryDelaySecs uint
+	token              string
+	appid              string
+	userid             string
+	useridpath         string
+	roleid             string
+}
+
+type envVarBackend struct {
+}
+
+type jsonFileBackend struct {
+	fileLocation string
+}
+
+type secretsClientConfig struct {
+	vaultBackend    *vaultBackend
+	envVarBackend   *envVarBackend
+	jsonFileBackend *jsonFileBackend
+}
+
+type SecretsClientOption func(*secretsClientConfig)
+
+func WithVaultBackend() SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		s.vaultBackend = &vaultBackend{}
+	}
+}
+
+func WithVaultHost(host string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.host = host
+	}
+}
+
+func WithVaultAuthentication(auth VaultAuthentication) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.authentication = auth
+	}
+}
+
+func WithVaultAuthRetries(retries uint) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.authRetries = retries
+	}
+}
+
+func WithVaultAuthRetryDelay(secs uint) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.authRetryDelaySecs = secs
+	}
+}
+
+func WithVaultToken(token string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.token = token
+	}
+}
+
+func WithVaultAppID(appid string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.appid = appid
+	}
+}
+
+func WithVaultUserID(userid string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.userid = userid
+	}
+}
+
+func WithVaultUserIDPath(useridpath string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.useridpath = useridpath
+	}
+}
+
+func WithVaultRoleID(roleid string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.roleid = roleid
+	}
+}
+
+func WithEnvVarBackend() SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		s.envVarBackend = &envVarBackend{}
+	}
+}
+
+func WithJSONFileBackend() SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		s.jsonFileBackend = &jsonFileBackend{}
+	}
+}
+
+func WithJSONFileLocation(loc string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.jsonFileBackend == nil {
+			s.jsonFileBackend = &jsonFileBackend{}
+		}
+		s.jsonFileBackend.fileLocation = loc
+	}
+}
+
+func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
+	config := &secretsClientConfig{}
+	for _, op := range ops {
+		op(config)
+	}
+	sc := SecretsClient{}
+	switch {
+	case config.vaultBackend != nil:
+		vbe, err := newVaultBackendGetter(config.vaultBackend)
+		if err != nil {
+			return nil, fmt.Errorf("error getting vault backend: %v", err)
+		}
+		sc.backend = vbe
+	case config.envVarBackend != nil:
+		return nil, fmt.Errorf("env var backend not implemented")
+	case config.jsonFileBackend != nil:
+		return nil, fmt.Errorf("json file backend not implemented")
+	}
+	return &sc, nil
+}
