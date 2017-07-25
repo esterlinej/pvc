@@ -2,10 +2,12 @@ package pvc
 
 import "fmt"
 
+// SecretsClient is the client that retrieves secret values
 type SecretsClient struct {
 	backend secretBackend
 }
 
+// Get returns the value of a secret from the configured backend
 func (sc *SecretsClient) Get(secret *SecretDefinition) ([]byte, error) {
 	return sc.backend.Get(secret)
 }
@@ -14,11 +16,12 @@ type secretBackend interface {
 	Get(secret *SecretDefinition) ([]byte, error)
 }
 
+// SecretDefinition defines a secret and how it can be accessed via the various backends
 type SecretDefinition struct {
-	ID         string
-	VaultPath  string
-	EnvVarName string
-	JSONKey    string
+	ID         string // arbitrary identifier for this secret
+	VaultPath  string // path in Vault (no leading slash, eg "secret/foo/bar")
+	EnvVarName string // environment variable name
+	JSONKey    string // key in JSON object
 }
 
 type vaultBackend struct {
@@ -46,14 +49,17 @@ type secretsClientConfig struct {
 	jsonFileBackend *jsonFileBackend
 }
 
+// SecretsClientOption defines options when creating a SecretsClient
 type SecretsClientOption func(*secretsClientConfig)
 
+// WithVaultBackend enables the Vault backend
 func WithVaultBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.vaultBackend = &vaultBackend{}
 	}
 }
 
+// WithVaultHost sets the Vault server host (eg, https//my.vault.com:8300)
 func WithVaultHost(host string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -63,6 +69,7 @@ func WithVaultHost(host string) SecretsClientOption {
 	}
 }
 
+// WithVaultAuthentication sets the Vault authentication method
 func WithVaultAuthentication(auth VaultAuthentication) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -72,6 +79,7 @@ func WithVaultAuthentication(auth VaultAuthentication) SecretsClientOption {
 	}
 }
 
+// WithVaultAuthRetries sets the number of retries if authentication fails (default: 0)
 func WithVaultAuthRetries(retries uint) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -81,6 +89,7 @@ func WithVaultAuthRetries(retries uint) SecretsClientOption {
 	}
 }
 
+// WithVaultAuthRetryDelay sets the delay in seconds between authentication attempts (default: 0)
 func WithVaultAuthRetryDelay(secs uint) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -90,6 +99,7 @@ func WithVaultAuthRetryDelay(secs uint) SecretsClientOption {
 	}
 }
 
+// WithVaultToken sets the token to use when using token auth
 func WithVaultToken(token string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -99,6 +109,7 @@ func WithVaultToken(token string) SecretsClientOption {
 	}
 }
 
+// WithVaultAppID sets the AppID to use when using AppID auth
 func WithVaultAppID(appid string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -108,6 +119,7 @@ func WithVaultAppID(appid string) SecretsClientOption {
 	}
 }
 
+// WithVaultUserID sets the UserID to use when using AppID auth
 func WithVaultUserID(userid string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -117,6 +129,7 @@ func WithVaultUserID(userid string) SecretsClientOption {
 	}
 }
 
+// WithVaultUserIDPath sets the path to the file containing UserID when using AppID auth
 func WithVaultUserIDPath(useridpath string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -126,6 +139,7 @@ func WithVaultUserIDPath(useridpath string) SecretsClientOption {
 	}
 }
 
+// WithVaultRoleID sets the RoleID when using AppRole authentication
 func WithVaultRoleID(roleid string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
@@ -135,18 +149,21 @@ func WithVaultRoleID(roleid string) SecretsClientOption {
 	}
 }
 
+// WithEnvVarBackend enables the environment variable backend
 func WithEnvVarBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.envVarBackend = &envVarBackend{}
 	}
 }
 
+// WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}
 func WithJSONFileBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.jsonFileBackend = &jsonFileBackend{}
 	}
 }
 
+// WithJSONFileLocation sets the location to the JSON file
 func WithJSONFileLocation(loc string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.jsonFileBackend == nil {
@@ -156,6 +173,7 @@ func WithJSONFileLocation(loc string) SecretsClientOption {
 	}
 }
 
+// NewSecretsClient returns a SecretsClient configured according to the SecretsClientOptions supplied
 func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 	config := &secretsClientConfig{}
 	for _, op := range ops {

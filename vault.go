@@ -11,12 +11,14 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
+// VaultAuthentication enumerates the supported Vault authentication methods
 type VaultAuthentication int
 
+// Various Vault authentication methods
 const (
-	AppID VaultAuthentication = iota
-	Token
-	AppRole
+	AppID   VaultAuthentication = iota // AppID
+	Token                              // Token authentication
+	AppRole                            // AppRole
 )
 
 type vaultBackendGetter struct {
