@@ -1,4 +1,7 @@
 # PVC
+[![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
+
+[godocs]: https://godoc.org/github.com/dollarshaveclub/pvc
 
 PVC (polyvinyl chloride) is a simple, generic secret retrieval library that supports
 multiple backends.
