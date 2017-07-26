@@ -31,7 +31,7 @@ func getEnvClient() *pvc.SecretsClient {
 
 // secrets.json
 func getJSONClient() *pvc.SecretsClient {
-	sc, err := pvc.NewSecretsClient(pvc.WithJSONFileBackend()) // default mapping is fine
+	sc, err := pvc.NewSecretsClient(pvc.WithJSONFileBackend(), pvc.WithJSONFileLocation("secrets.json")) // default mapping is fine
 	if err != nil {
 		fatal("error getting client: %v", err)
 	}

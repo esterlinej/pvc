@@ -29,7 +29,7 @@ sc, _ := pvc.NewSecretsClient(pvc.WithEnvVarBackend(), pvc.WithMapping("SECRET_M
 secret, _ := sc.Get("foo")
 
 // JSON file backend
-sc, _ := pvc.NewSecretsClient(pvc.WithJSONFileBackend())
+sc, _ := pvc.NewSecretsClient(pvc.WithJSONFileBackend(),pvc.WithJSONFileLocation("secrets.json"))
 secret, _ := sc.Get("foo")
 
 // Vault backend
