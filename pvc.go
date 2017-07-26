@@ -1,6 +1,11 @@
 package pvc
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"html/template"
+	"strings"
+)
 
 // SecretsClient is the client that retrieves secret values
 type SecretsClient struct {
@@ -8,12 +13,12 @@ type SecretsClient struct {
 }
 
 // Get returns the value of a secret from the configured backend
-func (sc *SecretsClient) Get(secret *SecretDefinition) ([]byte, error) {
-	return sc.backend.Get(secret)
+func (sc *SecretsClient) Get(id string) ([]byte, error) {
+	return sc.backend.Get(id)
 }
 
 type secretBackend interface {
-	Get(secret *SecretDefinition) ([]byte, error)
+	Get(id string) ([]byte, error)
 }
 
 // SecretDefinition defines a secret and how it can be accessed via the various backends
@@ -44,6 +49,8 @@ type jsonFileBackend struct {
 }
 
 type secretsClientConfig struct {
+	mapping         string
+	backendCount    int
 	vaultBackend    *vaultBackend
 	envVarBackend   *envVarBackend
 	jsonFileBackend *jsonFileBackend
@@ -52,10 +59,21 @@ type secretsClientConfig struct {
 // SecretsClientOption defines options when creating a SecretsClient
 type SecretsClientOption func(*secretsClientConfig)
 
-// WithVaultBackend enables the Vault backend
+// WithMapping sets the template string mapping to determine the location for each secret in the backend. The secret ID will be interpolated as ".ID".
+// Example (Vault Backend): "secret/foo/bar/{{ .ID }}".
+// Example (Env Var Backend): "MYAPP_SECRET_{{ .ID }}"
+// Example (JSON Backend): "{{ .ID }}"
+func WithMapping(mapping string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		s.mapping = mapping
+	}
+}
+
+// WithVaultBackend enables the Vault backend.
 func WithVaultBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.vaultBackend = &vaultBackend{}
+		s.backendCount++
 	}
 }
 
@@ -149,17 +167,19 @@ func WithVaultRoleID(roleid string) SecretsClientOption {
 	}
 }
 
-// WithEnvVarBackend enables the environment variable backend
+// WithEnvVarBackend enables the environment variable backend.
 func WithEnvVarBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.envVarBackend = &envVarBackend{}
+		s.backendCount++
 	}
 }
 
-// WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}
+// WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}.
 func WithJSONFileBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.jsonFileBackend = &jsonFileBackend{}
+		s.backendCount++
 	}
 }
 
@@ -173,16 +193,20 @@ func WithJSONFileLocation(loc string) SecretsClientOption {
 	}
 }
 
-// NewSecretsClient returns a SecretsClient configured according to the SecretsClientOptions supplied
+// NewSecretsClient returns a SecretsClient configured according to the SecretsClientOptions supplied. Exactly one backend must be enabled.
+// Weird things will happen if you mix options with incompatible backends.
 func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 	config := &secretsClientConfig{}
 	for _, op := range ops {
 		op(config)
 	}
+	if config.backendCount != 1 {
+		return nil, fmt.Errorf("exactly one backend must be enabled")
+	}
 	sc := SecretsClient{}
 	switch {
 	case config.vaultBackend != nil:
-		vbe, err := newVaultBackendGetter(config.vaultBackend)
+		vbe, err := newVaultBackendGetter(config.vaultBackend, config.mapping)
 		if err != nil {
 			return nil, fmt.Errorf("error getting vault backend: %v", err)
 		}
@@ -193,4 +217,34 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 		return nil, fmt.Errorf("json file backend not implemented")
 	}
 	return &sc, nil
+}
+
+// secretMapper manages turning secret IDs into a location suitable for a backend to use
+type secretMapper struct {
+	mappingTmpl *template.Template
+}
+
+// newSecretMapper returns a secret mapper using the supplied mapping string
+func newSecretMapper(mapping string) (*secretMapper, error) {
+	if !strings.Contains(mapping, "{{ .ID") && !strings.Contains(mapping, "{{.ID") {
+		return nil, fmt.Errorf("mapping must contain {{ .ID }}")
+	}
+	tmpl, err := template.New("secret-mapper").Parse(mapping)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing mapping: %v", err)
+	}
+	return &secretMapper{
+		mappingTmpl: tmpl,
+	}, nil
+}
+
+// mapSecret maps a secret ID to a location via the mapping string
+func (sm *secretMapper) mapSecret(id string) (string, error) {
+	d := struct{ ID string }{ID: id}
+	b := bytes.Buffer{}
+	err := sm.mappingTmpl.Execute(&b, d)
+	if err != nil {
+		return "", fmt.Errorf("error executing mapping template: %v", err)
+	}
+	return string(b.Bytes()), nil
 }

@@ -11,27 +11,39 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
+// Default mapping for this backend
+const (
+	DefaultVaultMapping = "secret/{{ .ID }}"
+)
+
 // VaultAuthentication enumerates the supported Vault authentication methods
 type VaultAuthentication int
 
 // Various Vault authentication methods
 const (
-	AppID   VaultAuthentication = iota // AppID
+	None    VaultAuthentication = iota // No authentication at all
+	AppID                              // AppID
 	Token                              // Token authentication
 	AppRole                            // AppRole
 )
 
 type vaultBackendGetter struct {
 	vc     *vaultClient
+	mapper *secretMapper
 	config *vaultBackend
 }
 
-func newVaultBackendGetter(vb *vaultBackend) (*vaultBackendGetter, error) {
+func newVaultBackendGetter(vb *vaultBackend, mapping string) (*vaultBackendGetter, error) {
 	vc, err := newVaultClient(vb)
 	if err != nil {
 		return nil, fmt.Errorf("error creating vault client: %v", err)
 	}
+	if vb.host == "" {
+		return nil, fmt.Errorf("Vault host is required")
+	}
 	switch vb.authentication {
+	case None:
+		return nil, fmt.Errorf("authentication method is required")
 	case Token:
 		err = vc.tokenAuth(vb.token)
 		if err != nil {
@@ -44,18 +56,29 @@ func newVaultBackendGetter(vb *vaultBackend) (*vaultBackendGetter, error) {
 		}
 	case AppRole:
 		return nil, fmt.Errorf("AppRole authentication not implemented")
+	default:
+		return nil, fmt.Errorf("unknown authentication method: %v", vb.authentication)
+	}
+	if mapping == "" {
+		mapping = DefaultVaultMapping
+	}
+	sm, err := newSecretMapper(mapping)
+	if err != nil {
+		return nil, fmt.Errorf("error with mapping: %v", err)
 	}
 	return &vaultBackendGetter{
 		vc:     vc,
+		mapper: sm,
 		config: vb,
 	}, nil
 }
 
-func (vbg *vaultBackendGetter) Get(secret *SecretDefinition) ([]byte, error) {
-	if secret.VaultPath == "" {
-		return nil, fmt.Errorf("VaultPath is empty")
+func (vbg *vaultBackendGetter) Get(id string) ([]byte, error) {
+	path, err := vbg.mapper.mapSecret(id)
+	if err != nil {
+		return nil, fmt.Errorf("error mapping id to path: %v", err)
 	}
-	v, err := vbg.vc.getStringValue(secret.VaultPath)
+	v, err := vbg.vc.getStringValue(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading value: %v", err)
 	}
@@ -115,7 +138,7 @@ func (c *vaultClient) appIDAuth(appid string, userid string, useridpath string) 
 	}
 	var resp *api.Response
 	var err error
-	for i := 0; i < int(c.config.authRetries); i++ {
+	for i := 0; i <= int(c.config.authRetries); i++ {
 		req := c.client.NewRequest("POST", "/v1/auth/app-id/login")
 		jerr := req.SetJSONBody(bodystruct)
 		if jerr != nil {
