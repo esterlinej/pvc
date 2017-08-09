@@ -1,5 +1,6 @@
 # PVC
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
+[![CircleCI](https://circleci.com/gh/dollarshaveclub/pvc.svg?style=svg)](https://circleci.com/gh/dollarshaveclub/pvc)
 
 [godocs]: https://godoc.org/github.com/dollarshaveclub/pvc
 
