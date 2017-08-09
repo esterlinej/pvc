@@ -11,3 +11,9 @@ machine:
     - docker
   post:
     - docker run --name vault -d -p 8200:8200 -e "VAULT_USE_APP_ID=1" -v "$(PWD)/testing/vault_app_ids.json:/opt/app-id.json" -v "$(PWD)/testing/vault_secrets.json:/opt/secrets.json" -v "$(PWD)/testing/vault_policies.json:/opt/policies.json" quay.io/dollarshaveclub/vault-dev:master
+
+test:
+  override:
+    - go get -v
+    - go build
+    - go test -v -race -cover
