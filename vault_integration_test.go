@@ -11,10 +11,12 @@ const (
 )
 
 var testvb = vaultBackend{
-	host:   os.Getenv("VAULT_ADDR"),
-	appid:  os.Getenv("VAULT_TEST_APPID"),
-	userid: os.Getenv("VAULT_TEST_USERID"),
-	token:  os.Getenv("VAULT_TEST_TOKEN"),
+	host:               os.Getenv("VAULT_ADDR"),
+	appid:              os.Getenv("VAULT_TEST_APPID"),
+	userid:             os.Getenv("VAULT_TEST_USERID"),
+	token:              os.Getenv("VAULT_TEST_TOKEN"),
+	authRetries:        3,
+	authRetryDelaySecs: 1,
 }
 
 func testGetVaultClient(t *testing.T) *vaultClient {
@@ -26,29 +28,44 @@ func testGetVaultClient(t *testing.T) *vaultClient {
 }
 
 func TestVaultIntegrationAppIDAuth(t *testing.T) {
+	if testvb.host == "" {
+		t.Logf("VAULT_ADDR undefined, skipping")
+		return
+	}
 	vc := testGetVaultClient(t)
-	err := vc.appIDAuth(testvb.appid, testvb.userid, "")
+	err := vc.AppIDAuth(testvb.appid, testvb.userid, "")
 	if err != nil {
 		log.Fatalf("error authenticating: %v", err)
 	}
 }
 
 func TestVaultIntegrationTokenAuth(t *testing.T) {
+	if testvb.host == "" {
+		t.Logf("VAULT_ADDR undefined, skipping")
+		return
+	}
 	vc := testGetVaultClient(t)
-	err := vc.tokenAuth(testvb.token)
+	err := vc.TokenAuth(testvb.token)
 	if err != nil {
 		log.Fatalf("error authenticating: %v", err)
 	}
 }
 
 func TestVaultIntegrationGetValue(t *testing.T) {
+	if testvb.host == "" {
+		t.Logf("VAULT_ADDR undefined, skipping")
+		return
+	}
 	vc := testGetVaultClient(t)
-	err := vc.appIDAuth(testvb.appid, testvb.userid, "")
+	err := vc.AppIDAuth(testvb.appid, testvb.userid, "")
 	if err != nil {
 		t.Fatalf("error authenticating: %v", err)
 	}
-	_, err = vc.getValue(testSecretPath)
+	s, err := vc.GetStringValue(testSecretPath)
 	if err != nil {
 		t.Fatalf("error getting value: %v", err)
+	}
+	if s != "foo" {
+		t.Fatalf("bad value: %v (expected 'foo')", s)
 	}
 }

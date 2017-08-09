@@ -28,29 +28,26 @@ const (
 )
 
 type vaultBackendGetter struct {
-	vc     *vaultClient
-	mapper *secretMapper
+	vc     vaultIO
+	mapper SecretMapper
 	config *vaultBackend
 }
 
-func newVaultBackendGetter(vb *vaultBackend, mapping string) (*vaultBackendGetter, error) {
-	vc, err := newVaultClient(vb)
-	if err != nil {
-		return nil, fmt.Errorf("error creating vault client: %v", err)
-	}
+func newVaultBackendGetter(vb *vaultBackend, vc vaultIO) (*vaultBackendGetter, error) {
+	var err error
 	if vb.host == "" {
 		return nil, fmt.Errorf("Vault host is required")
 	}
 	switch vb.authentication {
 	case None:
-		return nil, fmt.Errorf("authentication method is required")
+		break
 	case Token:
-		err = vc.tokenAuth(vb.token)
+		err = vc.TokenAuth(vb.token)
 		if err != nil {
 			return nil, fmt.Errorf("error authenticating with supplied token: %v", err)
 		}
 	case AppID:
-		err = vc.appIDAuth(vb.appid, vb.userid, vb.useridpath)
+		err = vc.AppIDAuth(vb.appid, vb.userid, vb.useridpath)
 		if err != nil {
 			return nil, fmt.Errorf("error performing AppID authentication: %v", err)
 		}
@@ -59,10 +56,10 @@ func newVaultBackendGetter(vb *vaultBackend, mapping string) (*vaultBackendGette
 	default:
 		return nil, fmt.Errorf("unknown authentication method: %v", vb.authentication)
 	}
-	if mapping == "" {
-		mapping = DefaultVaultMapping
+	if vb.mapping == "" {
+		vb.mapping = DefaultVaultMapping
 	}
-	sm, err := newSecretMapper(mapping)
+	sm, err := newSecretMapper(vb.mapping)
 	if err != nil {
 		return nil, fmt.Errorf("error with mapping: %v", err)
 	}
@@ -74,17 +71,27 @@ func newVaultBackendGetter(vb *vaultBackend, mapping string) (*vaultBackendGette
 }
 
 func (vbg *vaultBackendGetter) Get(id string) ([]byte, error) {
-	path, err := vbg.mapper.mapSecret(id)
+	path, err := vbg.mapper.MapSecret(id)
 	if err != nil {
 		return nil, fmt.Errorf("error mapping id to path: %v", err)
 	}
-	v, err := vbg.vc.getStringValue(path)
+	v, err := vbg.vc.GetStringValue(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading value: %v", err)
 	}
 	return []byte(v), nil
 }
 
+// vaultIO describes an object capable of interacting with Vault
+type vaultIO interface {
+	TokenAuth(token string) error
+	AppIDAuth(appid string, userid string, useridpath string) error
+	AppRoleAuth(roleid string) error
+	GetStringValue(path string) (string, error)
+	GetBase64Value(path string) ([]byte, error)
+}
+
+// vaultClient is the concrete implementation of vaultIO interacting with a real Vault server
 type vaultClient struct {
 	client *api.Client
 	config *vaultBackend
@@ -101,12 +108,12 @@ func newVaultClient(config *vaultBackend) (*vaultClient, error) {
 }
 
 // tokenAuth sets the client token but doesn't check validity
-func (c *vaultClient) tokenAuth(token string) error {
+func (c *vaultClient) TokenAuth(token string) error {
 	c.token = token
 	c.client.SetToken(token)
 	ta := c.client.Auth().Token()
 	var err error
-	for i := 0; i < int(c.config.authRetries); i++ {
+	for i := 0; i <= int(c.config.authRetries); i++ {
 		_, err = ta.LookupSelf()
 		if err == nil {
 			break
@@ -121,7 +128,7 @@ func (c *vaultClient) tokenAuth(token string) error {
 }
 
 // appIDAuth attempts to perform app-id authorization.
-func (c *vaultClient) appIDAuth(appid string, userid string, useridpath string) error {
+func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) error {
 	if userid == "" {
 		uidb, err := ioutil.ReadFile(useridpath)
 		if err != nil {
@@ -167,6 +174,10 @@ func (c *vaultClient) appIDAuth(appid string, userid string, useridpath string) 
 	return nil
 }
 
+func (c *vaultClient) AppRoleAuth(roleid string) error {
+	return nil
+}
+
 // getValue retrieves value at path
 func (c *vaultClient) getValue(path string) (interface{}, error) {
 	c.client.SetToken(c.token)
@@ -184,8 +195,8 @@ func (c *vaultClient) getValue(path string) (interface{}, error) {
 	return s.Data["value"], nil
 }
 
-// getStringValue retrieves a value expected to be a string
-func (c *vaultClient) getStringValue(path string) (string, error) {
+// GetStringValue retrieves a value expected to be a string
+func (c *vaultClient) GetStringValue(path string) (string, error) {
 	val, err := c.getValue(path)
 	if err != nil {
 		return "", err
@@ -198,9 +209,9 @@ func (c *vaultClient) getStringValue(path string) (string, error) {
 	}
 }
 
-// getBase64Value retrieves and decodes a value expected to be base64-encoded binary
-func (c *vaultClient) getBase64Value(path string) ([]byte, error) {
-	val, err := c.getStringValue(path)
+// GetBase64Value retrieves and decodes a value expected to be base64-encoded binary
+func (c *vaultClient) GetBase64Value(path string) ([]byte, error) {
+	val, err := c.GetStringValue(path)
 	if err != nil {
 		return []byte{}, err
 	}

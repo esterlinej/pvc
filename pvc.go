@@ -39,13 +39,16 @@ type vaultBackend struct {
 	userid             string
 	useridpath         string
 	roleid             string
+	mapping            string
 }
 
 type envVarBackend struct {
+	mapping string
 }
 
 type jsonFileBackend struct {
 	fileLocation string
+	mapping      string
 }
 
 type secretsClientConfig struct {
@@ -206,17 +209,37 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 	sc := SecretsClient{}
 	switch {
 	case config.vaultBackend != nil:
-		vbe, err := newVaultBackendGetter(config.vaultBackend, config.mapping)
+		config.vaultBackend.mapping = config.mapping
+		vc, err := newVaultClient(config.vaultBackend)
+		if err != nil {
+			return nil, fmt.Errorf("error creating vault client: %v", err)
+		}
+		vbe, err := newVaultBackendGetter(config.vaultBackend, vc)
 		if err != nil {
 			return nil, fmt.Errorf("error getting vault backend: %v", err)
 		}
 		sc.backend = vbe
 	case config.envVarBackend != nil:
-		return nil, fmt.Errorf("env var backend not implemented")
+		config.envVarBackend.mapping = config.mapping
+		ebe, err := newEnvVarBackendGetter(config.envVarBackend)
+		if err != nil {
+			return nil, fmt.Errorf("error getting env var backend: %v", err)
+		}
+		sc.backend = ebe
 	case config.jsonFileBackend != nil:
-		return nil, fmt.Errorf("json file backend not implemented")
+		config.jsonFileBackend.mapping = config.mapping
+		jbe, err := newjsonFileBackendGetter(config.jsonFileBackend)
+		if err != nil {
+			return nil, fmt.Errorf("error getting JSON file backend: %v", err)
+		}
+		sc.backend = jbe
 	}
 	return &sc, nil
+}
+
+// SecretMapper maps secrets
+type SecretMapper interface {
+	MapSecret(id string) (string, error)
 }
 
 // secretMapper manages turning secret IDs into a location suitable for a backend to use
@@ -239,7 +262,7 @@ func newSecretMapper(mapping string) (*secretMapper, error) {
 }
 
 // mapSecret maps a secret ID to a location via the mapping string
-func (sm *secretMapper) mapSecret(id string) (string, error) {
+func (sm *secretMapper) MapSecret(id string) (string, error) {
 	d := struct{ ID string }{ID: id}
 	b := bytes.Buffer{}
 	err := sm.mappingTmpl.Execute(&b, d)
