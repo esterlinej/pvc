@@ -170,7 +170,7 @@ func WithVaultRoleID(roleid string) SecretsClientOption {
 	}
 }
 
-// WithEnvVarBackend enables the environment variable backend.
+// WithEnvVarBackend enables the environment variable backend. Any characters in the secret ID that are not alphanumeric ASCII or underscores (legal env var characters) will be replaced by underscores after mapping.
 func WithEnvVarBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.envVarBackend = &envVarBackend{}
