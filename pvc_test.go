@@ -21,6 +21,69 @@ func TestNewSecretsClientVaultBackend(t *testing.T) {
 	}
 }
 
+func TestNewSecretsClientVaultBackendOptionOrdering(t *testing.T) {
+	ops := []SecretsClientOption{
+		WithVaultAuthentication(None),
+		WithVaultHost("asdf"),
+		WithMapping("{{ .ID }}"),
+		WithVaultBackend(),
+	}
+	sc, err := NewSecretsClient(ops...)
+	if err != nil {
+		t.Fatalf("error getting SecretsClient: %v", err)
+	}
+	if sc.backend == nil {
+		t.Fatalf("backend is nil")
+	}
+	switch sc.backend.(type) {
+	case *vaultBackendGetter:
+		break
+	default:
+		t.Fatalf("wrong backend type: %T", sc.backend)
+	}
+}
+
+func TestNewSecretsClientJSONFileBackendOptionOrdering(t *testing.T) {
+	ops := []SecretsClientOption{
+		WithMapping("{{ .ID }}"),
+		WithJSONFileLocation("example/secrets.json"),
+		WithJSONFileBackend(),
+	}
+	sc, err := NewSecretsClient(ops...)
+	if err != nil {
+		t.Fatalf("error getting SecretsClient: %v", err)
+	}
+	if sc.backend == nil {
+		t.Fatalf("backend is nil")
+	}
+	switch sc.backend.(type) {
+	case *jsonFileBackendGetter:
+		break
+	default:
+		t.Fatalf("wrong backend type: %T", sc.backend)
+	}
+}
+
+func TestNewSecretsClientEnvVarBackendOptionOrdering(t *testing.T) {
+	ops := []SecretsClientOption{
+		WithMapping("{{ .ID }}"),
+		WithEnvVarBackend(),
+	}
+	sc, err := NewSecretsClient(ops...)
+	if err != nil {
+		t.Fatalf("error getting SecretsClient: %v", err)
+	}
+	if sc.backend == nil {
+		t.Fatalf("backend is nil")
+	}
+	switch sc.backend.(type) {
+	case *envVarBackendGetter:
+		break
+	default:
+		t.Fatalf("wrong backend type: %T", sc.backend)
+	}
+}
+
 func TestNewSecretsClientEnvVarBackend(t *testing.T) {
 	sc, err := NewSecretsClient(WithEnvVarBackend())
 	if err != nil {

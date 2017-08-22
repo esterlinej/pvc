@@ -75,7 +75,9 @@ func WithMapping(mapping string) SecretsClientOption {
 // WithVaultBackend enables the Vault backend.
 func WithVaultBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		s.vaultBackend = &vaultBackend{}
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
 		s.backendCount++
 	}
 }
@@ -173,7 +175,9 @@ func WithVaultRoleID(roleid string) SecretsClientOption {
 // WithEnvVarBackend enables the environment variable backend. Any characters in the secret ID that are not alphanumeric ASCII or underscores (legal env var characters) will be replaced by underscores after mapping.
 func WithEnvVarBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		s.envVarBackend = &envVarBackend{}
+		if s.envVarBackend == nil {
+			s.envVarBackend = &envVarBackend{}
+		}
 		s.backendCount++
 	}
 }
@@ -181,7 +185,9 @@ func WithEnvVarBackend() SecretsClientOption {
 // WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}.
 func WithJSONFileBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		s.jsonFileBackend = &jsonFileBackend{}
+		if s.jsonFileBackend == nil {
+			s.jsonFileBackend = &jsonFileBackend{}
+		}
 		s.backendCount++
 	}
 }
