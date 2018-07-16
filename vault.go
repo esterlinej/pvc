@@ -199,7 +199,10 @@ func (c *vaultClient) K8sAuth(jwt, roleid string) error {
 		JWT:  jwt,
 		Role: roleid,
 	}
-	return c.getTokenAndConfirm("/v1/auth/kubernetes/login", &payload)
+	if c.config.k8sauthpath == "" {
+		c.config.k8sauthpath = "kubernetes"
+	}
+	return c.getTokenAndConfirm(fmt.Sprintf("/v1/auth/%v/login", c.config.k8sauthpath), &payload)
 }
 
 // getValue retrieves value at path
