@@ -35,6 +35,7 @@ type vaultBackend struct {
 	authRetries        uint
 	authRetryDelaySecs uint
 	token              string
+	k8sjwt             string
 	appid              string
 	userid             string
 	useridpath         string
@@ -139,6 +140,18 @@ func WithVaultAppID(appid string) SecretsClientOption {
 			s.vaultBackend = &vaultBackend{}
 		}
 		s.vaultBackend.appid = appid
+	}
+}
+
+// WithVaultK8sAuth sets the Kubernetes JWT and role to use for authentication
+func WithVaultK8sAuth(jwt, role string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.k8sjwt = jwt
+		s.vaultBackend.roleid = role
+		s.vaultBackend.authentication = K8s
 	}
 }
 
