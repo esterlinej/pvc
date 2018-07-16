@@ -36,6 +36,7 @@ type vaultBackend struct {
 	authRetryDelaySecs uint
 	token              string
 	k8sjwt             string
+	k8sauthpath        string
 	appid              string
 	userid             string
 	useridpath         string
@@ -152,6 +153,16 @@ func WithVaultK8sAuth(jwt, role string) SecretsClientOption {
 		s.vaultBackend.k8sjwt = jwt
 		s.vaultBackend.roleid = role
 		s.vaultBackend.authentication = K8s
+	}
+}
+
+// WithVaultK8sAuthPath sets the path for the k8s Vault auth backend (defaults to "kubernetes" otherwise)
+func WithVaultK8sAuthPath(path string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.k8sauthpath = path
 	}
 }
 
