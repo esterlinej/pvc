@@ -25,6 +25,7 @@ const (
 	AppID                              // AppID
 	Token                              // Token authentication
 	AppRole                            // AppRole
+	K8s                                // Kubernetes
 )
 
 type vaultBackendGetter struct {
@@ -53,6 +54,11 @@ func newVaultBackendGetter(vb *vaultBackend, vc vaultIO) (*vaultBackendGetter, e
 		}
 	case AppRole:
 		return nil, fmt.Errorf("AppRole authentication not implemented")
+	case K8s:
+		err = vc.K8sAuth(vb.k8sjwt, vb.roleid)
+		if err != nil {
+			return nil, fmt.Errorf("error performing Kubernetes authentication: %v", err)
+		}
 	default:
 		return nil, fmt.Errorf("unknown authentication method: %v", vb.authentication)
 	}
@@ -87,6 +93,7 @@ type vaultIO interface {
 	TokenAuth(token string) error
 	AppIDAuth(appid string, userid string, useridpath string) error
 	AppRoleAuth(roleid string) error
+	K8sAuth(jwt, roleid string) error
 	GetStringValue(path string) (string, error)
 	GetBase64Value(path string) ([]byte, error)
 }
@@ -97,6 +104,8 @@ type vaultClient struct {
 	config *vaultBackend
 	token  string
 }
+
+var _ vaultIO = &vaultClient{}
 
 // newVaultClient returns a vaultClient object or error
 func newVaultClient(config *vaultBackend) (*vaultClient, error) {
@@ -127,27 +136,12 @@ func (c *vaultClient) TokenAuth(token string) error {
 	return nil
 }
 
-// appIDAuth attempts to perform app-id authorization.
-func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) error {
-	if userid == "" {
-		uidb, err := ioutil.ReadFile(useridpath)
-		if err != nil {
-			return fmt.Errorf("error reading useridpath: %v: %v", useridpath, err)
-		}
-		userid = string(uidb)
-	}
-	bodystruct := struct {
-		AppID  string `json:"app_id"`
-		UserID string `json:"user_id"`
-	}{
-		AppID:  appid,
-		UserID: string(userid),
-	}
+func (c *vaultClient) getTokenAndConfirm(route string, payload interface{}) error {
 	var resp *api.Response
 	var err error
 	for i := 0; i <= int(c.config.authRetries); i++ {
-		req := c.client.NewRequest("POST", "/v1/auth/app-id/login")
-		jerr := req.SetJSONBody(bodystruct)
+		req := c.client.NewRequest("POST", route)
+		jerr := req.SetJSONBody(payload)
 		if jerr != nil {
 			return fmt.Errorf("error setting auth JSON body: %v", jerr)
 		}
@@ -155,7 +149,7 @@ func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) 
 		if err == nil {
 			break
 		}
-		log.Printf("App-ID auth failed: %v, retrying (%v/%v)", err, i+1, c.config.authRetries)
+		log.Printf("auth failed: %v, retrying (%v/%v)", err, i+1, c.config.authRetries)
 		time.Sleep(time.Duration(c.config.authRetryDelaySecs) * time.Second)
 	}
 	if err != nil {
@@ -174,8 +168,38 @@ func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) 
 	return nil
 }
 
+// appIDAuth attempts to perform app-id authorization.
+func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) error {
+	if userid == "" {
+		uidb, err := ioutil.ReadFile(useridpath)
+		if err != nil {
+			return fmt.Errorf("error reading useridpath: %v: %v", useridpath, err)
+		}
+		userid = string(uidb)
+	}
+	bodystruct := struct {
+		AppID  string `json:"app_id"`
+		UserID string `json:"user_id"`
+	}{
+		AppID:  appid,
+		UserID: string(userid),
+	}
+	return c.getTokenAndConfirm("/v1/auth/app-id/login", &bodystruct)
+}
+
 func (c *vaultClient) AppRoleAuth(roleid string) error {
 	return nil
+}
+
+func (c *vaultClient) K8sAuth(jwt, roleid string) error {
+	payload := struct {
+		JWT  string `json:"jwt"`
+		Role string `json:"role"`
+	}{
+		JWT:  jwt,
+		Role: roleid,
+	}
+	return c.getTokenAndConfirm("/v1/auth/kubernetes/login", &payload)
 }
 
 // getValue retrieves value at path
