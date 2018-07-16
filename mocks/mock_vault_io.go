@@ -58,6 +58,16 @@ func (_mr *_MockvaultIORecorder) AppRoleAuth(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "AppRoleAuth", arg0)
 }
 
+func (_m *MockvaultIO) K8sAuth(jwt string, roleid string) error {
+	ret := _m.ctrl.Call(_m, "K8sAuth", jwt, roleid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockvaultIORecorder) K8sAuth(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sAuth", arg0, arg1)
+}
+
 func (_m *MockvaultIO) GetStringValue(path string) (string, error) {
 	ret := _m.ctrl.Call(_m, "GetStringValue", path)
 	ret0, _ := ret[0].(string)
