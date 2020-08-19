@@ -85,7 +85,7 @@ func WithMapping(mapping string) SecretsClientOption {
 func WithFileTreeBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
-			s.fileTreeBackend == &fileTreeBackend{}
+			s.fileTreeBackend = &fileTreeBackend{}
 		}
 		s.backendCount ++
 	}
@@ -95,7 +95,7 @@ func WithFileTreeBackend() SecretsClientOption {
 func WithFileTreeRootPath(rootPath string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
-			s.fileTreeBackend == &fileTreeBackend{}
+			s.fileTreeBackend = &fileTreeBackend{}
 		}
 		s.fileTreeBackend.rootPath = rootPath
 	}
@@ -301,10 +301,11 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 		sc.backend = jbe
 	case config.fileTreeBackend != nil:
 		config.fileTreeBackend.mapping = config.mapping 
-		ftbe, err := newFileTreeBackendGetter(config.fileTreeBackend)
+		ftg, err := newFileTreeBackendGetter(config.fileTreeBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error getting FileTree backend: %v", err)
 		}
+		sc.backend = ftg
 	}
 	return &sc, nil
 }
