@@ -29,4 +29,11 @@ func TestJSONFileBackendGetterGet(t *testing.T) {
 	if string(s) != value {
 		t.Fatalf("bad value: %v (expected %v)", string(s), value)
 	}
+	s, err = jbg.Get("binarydata")
+	if err != nil {
+		t.Fatalf("binary get failed: %v", err)
+	}
+	if len(s) != 32 {
+		t.Fatalf("bad binary length %v (wanted 32)", len(s))
+	}
 }

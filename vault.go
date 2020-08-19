@@ -1,7 +1,6 @@
 package pvc
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -81,11 +80,11 @@ func (vbg *vaultBackendGetter) Get(id string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error mapping id to path: %v", err)
 	}
-	v, err := vbg.vc.GetStringValue(path)
+	v, err := vbg.vc.GetValue(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading value: %v", err)
 	}
-	return []byte(v), nil
+	return v, nil
 }
 
 // vaultIO describes an object capable of interacting with Vault
@@ -94,8 +93,7 @@ type vaultIO interface {
 	AppIDAuth(appid string, userid string, useridpath string) error
 	AppRoleAuth(roleid string) error
 	K8sAuth(jwt, roleid string) error
-	GetStringValue(path string) (string, error)
-	GetBase64Value(path string) ([]byte, error)
+	GetValue(path string) ([]byte, error)
 }
 
 // vaultClient is the concrete implementation of vaultIO interacting with a real Vault server
@@ -205,6 +203,8 @@ func (c *vaultClient) K8sAuth(jwt, roleid string) error {
 	return c.getTokenAndConfirm(fmt.Sprintf("/v1/auth/%v/login", c.config.k8sauthpath), &payload)
 }
 
+var DefaultVaultValueKey = "value"
+
 // getValue retrieves value at path
 func (c *vaultClient) getValue(path string) (interface{}, error) {
 	c.client.SetToken(c.token)
@@ -216,35 +216,28 @@ func (c *vaultClient) getValue(path string) (interface{}, error) {
 	if s == nil {
 		return nil, fmt.Errorf("secret not found")
 	}
-	if _, ok := s.Data["value"]; !ok {
-		return nil, fmt.Errorf("secret missing 'value' key")
+	key := DefaultVaultValueKey
+	if c.config.valuekey != "" {
+		key = c.config.valuekey
 	}
-	return s.Data["value"], nil
+	if _, ok := s.Data[key]; !ok {
+		return nil, fmt.Errorf("secret missing value key: %v", key)
+	}
+	return s.Data[key], nil
 }
 
-// GetStringValue retrieves a value expected to be a string
-func (c *vaultClient) GetStringValue(path string) (string, error) {
+// GetValue retrieves a value
+func (c *vaultClient) GetValue(path string) ([]byte, error) {
 	val, err := c.getValue(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	switch val := val.(type) {
-	case string:
+	case []byte:
 		return val, nil
+	case string:
+		return []byte(val), nil
 	default:
-		return "", fmt.Errorf("unexpected type for %v value: %T", path, val)
+		return nil, fmt.Errorf("unexpected type for %v value: %T", path, val)
 	}
-}
-
-// GetBase64Value retrieves and decodes a value expected to be base64-encoded binary
-func (c *vaultClient) GetBase64Value(path string) ([]byte, error) {
-	val, err := c.GetStringValue(path)
-	if err != nil {
-		return []byte{}, err
-	}
-	decoded, err := base64.StdEncoding.DecodeString(val)
-	if err != nil {
-		return []byte{}, fmt.Errorf("vault path: %v: error decoding base64 value: %v", path, err)
-	}
-	return decoded, nil
 }

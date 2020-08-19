@@ -29,7 +29,7 @@ func testGetVaultClient(t *testing.T) *vaultClient {
 
 func TestVaultIntegrationAppIDAuth(t *testing.T) {
 	if testvb.host == "" {
-		t.Logf("VAULT_ADDR undefined, skipping")
+		t.Skipf("VAULT_ADDR undefined, skipping")
 		return
 	}
 	vc := testGetVaultClient(t)
@@ -41,7 +41,7 @@ func TestVaultIntegrationAppIDAuth(t *testing.T) {
 
 func TestVaultIntegrationTokenAuth(t *testing.T) {
 	if testvb.host == "" {
-		t.Logf("VAULT_ADDR undefined, skipping")
+		t.Skipf("VAULT_ADDR undefined, skipping")
 		return
 	}
 	vc := testGetVaultClient(t)
@@ -53,7 +53,7 @@ func TestVaultIntegrationTokenAuth(t *testing.T) {
 
 func TestVaultIntegrationGetValue(t *testing.T) {
 	if testvb.host == "" {
-		t.Logf("VAULT_ADDR undefined, skipping")
+		t.Skipf("VAULT_ADDR undefined, skipping")
 		return
 	}
 	vc := testGetVaultClient(t)
@@ -61,11 +61,11 @@ func TestVaultIntegrationGetValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error authenticating: %v", err)
 	}
-	s, err := vc.GetStringValue(testSecretPath)
+	s, err := vc.GetValue(testSecretPath)
 	if err != nil {
 		t.Fatalf("error getting value: %v", err)
 	}
-	if s != "foo" {
-		t.Fatalf("bad value: %v (expected 'foo')", s)
+	if string(s) != "foo" {
+		t.Fatalf("bad value: %v (expected 'foo')", string(s))
 	}
 }

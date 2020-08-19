@@ -1,6 +1,7 @@
 package pvc
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,7 +50,12 @@ func (jbg *jsonFileBackendGetter) Get(id string) ([]byte, error) {
 		return nil, fmt.Errorf("error mapping id to object key: %v", err)
 	}
 	if val, ok := jbg.contents[key]; ok {
-		return []byte(val), nil
+		d, err := base64.StdEncoding.DecodeString(val)
+		if err != nil {
+			// not base64 encoded
+			return []byte(val), nil
+		}
+		return d, nil
 	}
 	return nil, fmt.Errorf("secret not found: %v", key)
 }

@@ -23,6 +23,9 @@ func TestNewEnvVarBackendGetterBadMapping(t *testing.T) {
 	}
 }
 
+// 32 random bytes, base64-encoded
+var binarydata = "jbsZSSkdDfAGtVR+9QjigOv7B8zjbCnF5GsQPKZIvzc="
+
 func TestEnvVarBackendGetterGet(t *testing.T) {
 	eb := &envVarBackend{
 		mapping: "{{ .ID }}",
@@ -44,6 +47,15 @@ func TestEnvVarBackendGetterGet(t *testing.T) {
 	}
 	if string(s) != value {
 		t.Fatalf("bad value: %v (expected %v)", string(s), value)
+	}
+
+	os.Setenv(sid, binarydata)
+	s, err = evb.Get(sid)
+	if err != nil {
+		t.Fatalf("binary get failed: %v", err)
+	}
+	if len(s) != 32 {
+		t.Fatalf("bad binary data length %v (wanted 32)", len(s))
 	}
 }
 

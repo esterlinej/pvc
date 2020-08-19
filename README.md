@@ -2,7 +2,7 @@
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
 [![CircleCI](https://circleci.com/gh/dollarshaveclub/pvc.svg?style=svg)](https://circleci.com/gh/dollarshaveclub/pvc)
 
-[godocs]: https://godoc.org/github.com/dollarshaveclub/pvc
+[godocs]: https://pkg.go.dev/github.com/dollarshaveclub/pvc
 
 PVC (polyvinyl chloride) is a simple, generic secret retrieval library that supports
 multiple backends.
@@ -14,13 +14,23 @@ significant code changes required.
 
 ## Backends
 
-- Vault
+- [Vault KV Version 1](https://www.vaultproject.io/docs/secrets/kv)
 - Environment variables
 - JSON file
 
+## Secret Values
+
+PVC makes some assumptions about how your secrets are stored in the various backends:
+
+- If using Vault, there must be exactly one key called "value" for any given secret path (this can be overridden with 
+`WithVaultValueKey("foo")`). The data associated with the value key will be retrieved and returned literally to the 
+client as a byte slice.
+- If using JSON or environment variables, the value will be treated as a string unless Base64-encoded, in which case 
+it will be decoded when retrieved. In both cases, the value is returned to the client as a byte slice.
+
 ## Vault Authentication
 
-PVC supports token, AppID and AppRole authentication.
+PVC supports token, Kubernetes, AppID (deprecated) and AppRole authentication.
 
 ## Example
 

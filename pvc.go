@@ -42,6 +42,7 @@ type vaultBackend struct {
 	useridpath         string
 	roleid             string
 	mapping            string
+	valuekey string
 }
 
 type envVarBackend struct {
@@ -193,6 +194,15 @@ func WithVaultRoleID(roleid string) SecretsClientOption {
 			s.vaultBackend = &vaultBackend{}
 		}
 		s.vaultBackend.roleid = roleid
+	}
+}
+
+func WithVaultValueKey(key string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.vaultBackend == nil {
+			s.vaultBackend = &vaultBackend{}
+		}
+		s.vaultBackend.valuekey = key
 	}
 }
 
