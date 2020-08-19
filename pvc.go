@@ -42,7 +42,7 @@ type vaultBackend struct {
 	useridpath         string
 	roleid             string
 	mapping            string
-	valuekey string
+	valuekey           string
 }
 
 type envVarBackend struct {
@@ -56,7 +56,7 @@ type jsonFileBackend struct {
 
 type fileTreeBackend struct {
 	rootPath string
-	mapping string
+	mapping  string
 }
 
 type secretsClientConfig struct {
@@ -65,7 +65,7 @@ type secretsClientConfig struct {
 	vaultBackend    *vaultBackend
 	envVarBackend   *envVarBackend
 	jsonFileBackend *jsonFileBackend
-	fileTreeBackend *fileTreeBackend 
+	fileTreeBackend *fileTreeBackend
 }
 
 // SecretsClientOption defines options when creating a SecretsClient
@@ -81,13 +81,13 @@ func WithMapping(mapping string) SecretsClientOption {
 	}
 }
 
-// WithFileTree enables the FileTreBackend
+// WithFileTree enables the FileTreeBackend
 func WithFileTreeBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
 			s.fileTreeBackend = &fileTreeBackend{}
 		}
-		s.backendCount ++
+		s.backendCount++
 	}
 }
 
@@ -300,7 +300,7 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 		}
 		sc.backend = jbe
 	case config.fileTreeBackend != nil:
-		config.fileTreeBackend.mapping = config.mapping 
+		config.fileTreeBackend.mapping = config.mapping
 		ftg, err := newFileTreeBackendGetter(config.fileTreeBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error getting FileTree backend: %v", err)
