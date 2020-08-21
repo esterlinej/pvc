@@ -36,17 +36,33 @@ PVC supports token, Kubernetes, AppID (deprecated) and AppRole authentication.
 ## Example
 
 ```go
+package main
+
+import "github.com/dollarshaveclub/pvc"
+
+func main() {
+
 // environment variable backend
 sc, _ := pvc.NewSecretsClient(pvc.WithEnvVarBackend(), pvc.WithMapping("SECRET_MYAPP_{{ .ID }}"))
-secret, _ := sc.Get("foo")
+secret, _ := sc.Get("foo") // fetches the env var "SECRET_MYAPP_FOO"
 
 // JSON file backend
-sc, _ := pvc.NewSecretsClient(pvc.WithJSONFileBackend(),pvc.WithJSONFileLocation("secrets.json"))
-secret, _ := sc.Get("foo")
+sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend(),pvc.WithJSONFileLocation("secrets.json"))
+secret, _ = sc.Get("foo") // fetches the value in secrets.json under the key "foo"
 
 // Vault backend
-sc, _ := pvc.NewSecretsClient(pvc.WithVaultBackend(), pvc.WithVaultAuthentication(pvc.Token), pvc.WithVaultToken(vaultToken), pvc.WithVaultHost(vaultHost), pvc.WithMapping("secret/development/{{ .ID }}"))
-secret, _ := sc.Get("foo")
+sc, _ = pvc.NewSecretsClient(
+    pvc.WithVaultBackend(), 
+    pvc.WithVaultAuthentication(pvc.Token), 
+    pvc.WithVaultToken("some token"), 
+    pvc.WithVaultHost("http://vault.example.com:8200"), 
+    pvc.WithMapping("secret/development/{{ .ID }}"))
+secret, _ = sc.Get("foo") // fetches the value from Vault (using token auth) from path secret/development/foo
+
+// (unused vars, make this example directly compilable)
+sc = sc
+secret = secret
+}
 ```
 
 See also `example/`
