@@ -50,14 +50,14 @@ func getVaultClient() *pvc.SecretsClient {
 func getSecrets(sc *pvc.SecretsClient) {
 	foo, err := sc.Get("foo")
 	if err != nil {
-		fatal("error getting secret")
+		fatal("error getting secret: foo: %v", err)
 	}
-	fmt.Printf("secret named 'foo': %v\n", foo)
-	bar, err := sc.Get("bar")
+	fmt.Printf("secret named 'foo': %v\n", string(foo))
+	biz, err := sc.Get("biz")
 	if err != nil {
-		fatal("error getting secret")
+		fatal("error getting secret: biz: %v", err)
 	}
-	fmt.Printf("secret named 'bar': %v\n", bar)
+	fmt.Printf("secret named 'biz': %v\n", string(biz))
 }
 
 func main() {

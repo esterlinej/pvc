@@ -24,7 +24,7 @@ func TestNewEnvVarBackendGetterBadMapping(t *testing.T) {
 }
 
 // 32 random bytes, base64-encoded
-var binarydata = "jbsZSSkdDfAGtVR+9QjigOv7B8zjbCnF5GsQPKZIvzc="
+var binarydata = Base64Prefix + "jbsZSSkdDfAGtVR+9QjigOv7B8zjbCnF5GsQPKZIvzc="
 
 func TestEnvVarBackendGetterGet(t *testing.T) {
 	eb := &envVarBackend{

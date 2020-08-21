@@ -25,8 +25,9 @@ PVC makes some assumptions about how your secrets are stored in the various back
 - If using Vault, there must be exactly one key called "value" for any given secret path (this can be overridden with 
 `WithVaultValueKey("foo")`). The data associated with the value key will be retrieved and returned literally to the 
 client as a byte slice.
-- If using JSON or environment variables, the value will be treated as a string unless Base64-encoded, in which case 
-it will be decoded when retrieved. In both cases, the value is returned to the client as a byte slice.
+- If using JSON or environment variables, the value will be treated as a string unless Base64-encoded prefixed with `Base64Prefix`, in which case 
+it will be decoded when retrieved. In both cases, the value is returned to the client as a byte slice. This allows binary secrets to be stored in
+backends that only hold strings.
 
 ## Vault Authentication
 

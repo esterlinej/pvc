@@ -1,7 +1,6 @@
 package pvc
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -57,10 +56,12 @@ func (ebg *envVarBackendGetter) Get(id string) ([]byte, error) {
 	if !exists {
 		return nil, fmt.Errorf("secret not found: %v", vname)
 	}
-	d, err := base64.StdEncoding.DecodeString(val)
-	if err != nil {
-		// not base64 encoded
-		return []byte(val), nil
+	if IsBase64Encoded(val) {
+		d, err := Base64Decode(val)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding base64 value: %v", err)
+		}
+		return d, nil
 	}
-	return d, nil
+	return []byte(val), nil
 }

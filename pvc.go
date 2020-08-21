@@ -2,6 +2,7 @@ package pvc
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"strings"
@@ -42,7 +43,7 @@ type vaultBackend struct {
 	useridpath         string
 	roleid             string
 	mapping            string
-	valuekey string
+	valuekey           string
 }
 
 type envVarBackend struct {
@@ -310,4 +311,15 @@ func (sm *secretMapper) MapSecret(id string) (string, error) {
 		return "", fmt.Errorf("error executing mapping template: %v", err)
 	}
 	return string(b.Bytes()), nil
+}
+
+// Base64Prefix is used as a prefix used to indicate binary secrets in JSON/Envvar backends
+const Base64Prefix = "__BASE64__:"
+
+func IsBase64Encoded(s string) bool {
+	return strings.HasPrefix(s, Base64Prefix)
+}
+
+func Base64Decode(s string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(strings.Replace(s, Base64Prefix, "", 1))
 }
