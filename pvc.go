@@ -15,6 +15,9 @@ type SecretsClient struct {
 
 // Get returns the value of a secret from the configured backend
 func (sc *SecretsClient) Get(id string) ([]byte, error) {
+	if sc.backend == nil {
+		return nil, fmt.Errorf("SecretsClient is uninitialized: backend is nil")
+	}
 	return sc.backend.Get(id)
 }
 

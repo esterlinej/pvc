@@ -1,7 +1,5 @@
 # github.com/frankban/quicktest v1.10.1
 ## explicit
-# github.com/golang/mock v1.1.1
-## explicit
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
 # github.com/hashicorp/errwrap v1.0.0

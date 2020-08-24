@@ -38,7 +38,10 @@ PVC supports token, Kubernetes, AppID (deprecated) and AppRole authentication.
 ```go
 package main
 
-import "github.com/dollarshaveclub/pvc"
+import (
+	"fmt"
+    "github.com/dollarshaveclub/pvc"
+)
 
 func main() {
 
@@ -50,6 +53,8 @@ secret, _ := sc.Get("foo") // fetches the env var "SECRET_MYAPP_FOO"
 sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend(),pvc.WithJSONFileLocation("secrets.json"))
 secret, _ = sc.Get("foo") // fetches the value in secrets.json under the key "foo"
 
+fmt.Printf("foo: %v\n", string(secret))
+
 // Vault backend
 sc, _ = pvc.NewSecretsClient(
     pvc.WithVaultBackend(), 
@@ -59,9 +64,26 @@ sc, _ = pvc.NewSecretsClient(
     pvc.WithMapping("secret/development/{{ .ID }}"))
 secret, _ = sc.Get("foo") // fetches the value from Vault (using token auth) from path secret/development/foo
 
-// (unused vars, make this example directly compilable)
-sc = sc
-secret = secret
+fmt.Printf("foo: %v\n", string(secret))
+
+// Automatic struct filling
+type Secrets struct {
+    Username string `secret:"secret/username"`  // secret id: secret/username
+    Password string `secret:"secret/password"`
+    EncryptionKey []byte `secret:"secret/enc_key"` // fields can be strings or byte slices
+}
+
+secrets := Secrets{}
+
+// Fill automatically fills the fields in the secrets struct that have "secret" tags
+err := sc.Fill(&secrets)
+if err != nil {
+    panic(err)
+}
+
+fmt.Printf("my username is: %v\n", secrets.Username)
+fmt.Printf("my password is: %v\n", secrets.Password)
+fmt.Printf("my key length is %d\n", len(secrets.EncryptionKey))
 }
 ```
 
