@@ -40,50 +40,51 @@ package main
 
 import (
 	"fmt"
-    "github.com/dollarshaveclub/pvc"
+
+	"github.com/dollarshaveclub/pvc"
 )
 
 func main() {
 
-// environment variable backend
-sc, _ := pvc.NewSecretsClient(pvc.WithEnvVarBackend(), pvc.WithMapping("SECRET_MYAPP_{{ .ID }}"))
-secret, _ := sc.Get("foo") // fetches the env var "SECRET_MYAPP_FOO"
+	// environment variable backend
+	sc, _ := pvc.NewSecretsClient(pvc.WithEnvVarBackend(), pvc.WithMapping("SECRET_MYAPP_{{ .ID }}"))
+	secret, _ := sc.Get("foo") // fetches the env var "SECRET_MYAPP_FOO"
 
-// JSON file backend
-sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend(),pvc.WithJSONFileLocation("secrets.json"))
-secret, _ = sc.Get("foo") // fetches the value in secrets.json under the key "foo"
+	// JSON file backend
+	sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend(), pvc.WithJSONFileLocation("secrets.json"))
+	secret, _ = sc.Get("foo") // fetches the value in secrets.json under the key "foo"
 
-fmt.Printf("foo: %v\n", string(secret))
+	fmt.Printf("foo: %v\n", string(secret))
 
-// Vault backend
-sc, _ = pvc.NewSecretsClient(
-    pvc.WithVaultBackend(), 
-    pvc.WithVaultAuthentication(pvc.Token), 
-    pvc.WithVaultToken("some token"), 
-    pvc.WithVaultHost("http://vault.example.com:8200"), 
-    pvc.WithMapping("secret/development/{{ .ID }}"))
-secret, _ = sc.Get("foo") // fetches the value from Vault (using token auth) from path secret/development/foo
+	// Vault backend
+	sc, _ = pvc.NewSecretsClient(
+		pvc.WithVaultBackend(),
+		pvc.WithVaultAuthentication(pvc.Token),
+		pvc.WithVaultToken("some token"),
+		pvc.WithVaultHost("http://vault.example.com:8200"),
+		pvc.WithMapping("secret/development/{{ .ID }}"))
+	secret, _ = sc.Get("foo") // fetches the value from Vault (using token auth) from path secret/development/foo
 
-fmt.Printf("foo: %v\n", string(secret))
+	fmt.Printf("foo: %v\n", string(secret))
 
-// Automatic struct filling
-type Secrets struct {
-    Username string `secret:"secret/username"`  // secret id: secret/username
-    Password string `secret:"secret/password"`
-    EncryptionKey []byte `secret:"secret/enc_key"` // fields can be strings or byte slices
-}
+	// Automatic struct filling
+	type Secrets struct {
+		Username      string `secret:"secret/username"` // secret id: secret/username
+		Password      string `secret:"secret/password"`
+		EncryptionKey []byte `secret:"secret/enc_key"` // fields can be strings or byte slices
+	}
 
-secrets := Secrets{}
+	secrets := Secrets{}
 
-// Fill automatically fills the fields in the secrets struct that have "secret" tags
-err := sc.Fill(&secrets)
-if err != nil {
-    panic(err)
-}
+	// Fill automatically fills the fields in the secrets struct that have "secret" tags
+	err := sc.Fill(&secrets)
+	if err != nil {
+		panic(err)
+	}
 
-fmt.Printf("my username is: %v\n", secrets.Username)
-fmt.Printf("my password is: %v\n", secrets.Password)
-fmt.Printf("my key length is %d\n", len(secrets.EncryptionKey))
+	fmt.Printf("my username is: %v\n", secrets.Username)
+	fmt.Printf("my password is: %v\n", secrets.Password)
+	fmt.Printf("my key length is %d\n", len(secrets.EncryptionKey))
 }
 ```
 

@@ -10,7 +10,9 @@ var SecretStructTag = "secret"
 
 // Fill takes a pointer to any struct type and fills any fields annotated with SecretStructTag secret ids.
 // Annotated fields must *only* be string or []byte, any other type will cause this method
-// to return an error
+// to return an error.
+// Note that Fill doesn't check the secret type; if the field value is a string, the byte slice returned
+// by the backend for that secret will be converted to a string.
 func (sc *SecretsClient) Fill(s interface{}) error {
 	if s == nil {
 		return fmt.Errorf("struct is nil")
