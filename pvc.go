@@ -58,12 +58,18 @@ type jsonFileBackend struct {
 	mapping      string
 }
 
+type fileTreeBackend struct {
+	rootPath string
+	mapping  string
+}
+
 type secretsClientConfig struct {
 	mapping         string
 	backendCount    int
 	vaultBackend    *vaultBackend
 	envVarBackend   *envVarBackend
 	jsonFileBackend *jsonFileBackend
+	fileTreeBackend *fileTreeBackend
 }
 
 // SecretsClientOption defines options when creating a SecretsClient
@@ -76,6 +82,29 @@ type SecretsClientOption func(*secretsClientConfig)
 func WithMapping(mapping string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.mapping = mapping
+	}
+}
+
+// WithFileTree enables the FileTreeBackend. With this backend, PVC reads one individual file per secret ID. Sub-paths
+// under the root should be implemented with directory separators in the secret ID.
+// The path that results from the root path + secret ID mapping will be read as the secret. This must be an absolute
+// filesystem path.
+func WithFileTreeBackend() SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.fileTreeBackend == nil {
+			s.fileTreeBackend = &fileTreeBackend{}
+		}
+		s.backendCount++
+	}
+}
+
+// WithFileTreeRootPath sets the root path for the file tree backend. This must be an absolute path.
+func WithFileTreeRootPath(rootPath string) SecretsClientOption {
+	return func(s *secretsClientConfig) {
+		if s.fileTreeBackend == nil {
+			s.fileTreeBackend = &fileTreeBackend{}
+		}
+		s.fileTreeBackend.rootPath = rootPath
 	}
 }
 
@@ -277,6 +306,13 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 			return nil, fmt.Errorf("error getting JSON file backend: %v", err)
 		}
 		sc.backend = jbe
+	case config.fileTreeBackend != nil:
+		config.fileTreeBackend.mapping = config.mapping
+		ftg, err := newFileTreeBackendGetter(config.fileTreeBackend)
+		if err != nil {
+			return nil, fmt.Errorf("error getting FileTree backend: %v", err)
+		}
+		sc.backend = ftg
 	}
 	return &sc, nil
 }

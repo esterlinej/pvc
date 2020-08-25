@@ -17,6 +17,7 @@ significant code changes required.
 - [Vault KV Version 1](https://www.vaultproject.io/docs/secrets/kv)
 - Environment variables
 - JSON file
+- File Tree (local filesystem, one file per secret)
 
 ## Secret Values
 
@@ -28,6 +29,21 @@ client as a byte slice.
 - If using JSON or environment variables, the value will be treated as a string unless Base64-encoded prefixed with `Base64Prefix`, in which case 
 it will be decoded when retrieved. In both cases, the value is returned to the client as a byte slice. This allows binary secrets to be stored in
 backends that only hold strings.
+- If using the file tree backend, you must supply an absolute root path which will be combined with the secret ID (after
+mapping). This file path will be read as the secret contents.
+
+## File Tree
+This is intended to be useful for local development secrets in the filesystem, or using 
+the [Vault Sidecar Injector](https://www.vaultproject.io/docs/platform/k8s/injector).
+
+Example:
+
+    Root Path: /vault/secrets
+    Secret ID: webservice/production/db/password
+    Mapping: {{ .ID }}.txt
+    
+    PVC would read this file during a Get() call:
+    /vault/secrets/webservice/production/db/password.txt
 
 ## Vault Authentication
 
