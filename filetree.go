@@ -11,9 +11,10 @@ import (
 const (
 	DefaultFileTreeMapping  = "{{ .ID }}"
 	DefaultFileTreeRootPath = "/vault/secrets"
-	// TODO make this overrideable through cmd flags
-	MaxFileTreeFileSizeBytes = 2_000_000 // 2 MB```"
 )
+
+// MaxFileTreeSizeBytes indicates the maximum file size we will read
+var MaxFileTreeFileSizeBytes int64 = 2_000_000 // 2 MB
 
 type fileTreeBackendGetter struct {
 	mapper   SecretMapper
@@ -22,7 +23,6 @@ type fileTreeBackendGetter struct {
 }
 
 func newFileTreeBackendGetter(ft *fileTreeBackend) (*fileTreeBackendGetter, error) {
-	// TODO _ check for optional FileTreeRootPath override and handle accordingly
 	if ft.mapping == "" {
 		ft.mapping = DefaultFileTreeMapping
 	}
@@ -42,24 +42,28 @@ func newFileTreeBackendGetter(ft *fileTreeBackend) (*fileTreeBackendGetter, erro
 func (ftg *fileTreeBackendGetter) Get(id string) ([]byte, error) {
 	key, err := ftg.mapper.MapSecret(id)
 	if err != nil {
-		return nil, fmt.Errorf("file tree error mapping secret id %v : %v", id, err)
+		return nil, fmt.Errorf("error mapping secret id to filetree path: %v", err)
 	}
 	secretFilePath := filepath.Join(ftg.config.rootPath, key)
-	secretFile, err := os.Open(secretFilePath)
+	if !filepath.IsAbs(secretFilePath) {
+		return nil, fmt.Errorf("filetree path must be absolute: %v", secretFilePath)
+	}
+	f, err := os.Open(secretFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("file tree error opening file %v: %v", secretFilePath, err)
 	}
-	stat, err := os.Stat(secretFilePath)
+	defer f.Close()
+	stat, err := f.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("file tree error, error getting file stats :%v", err)
+		return nil, fmt.Errorf("error getting file stat: %v", err)
 	}
 	size := stat.Size()
 	if size > MaxFileTreeFileSizeBytes {
-		return nil, fmt.Errorf("file tree error secret file to large: %v", err)
+		return nil, fmt.Errorf("file too large (max: %v bytes): %v", MaxFileTreeFileSizeBytes, size)
 	}
-	c, err := ioutil.ReadAll(secretFile)
+	c, err := ioutil.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("file tree error reading file: %v", err)
+		return nil, fmt.Errorf("error reading file: %v", err)
 	}
 	return c, nil
 }

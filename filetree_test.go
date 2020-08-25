@@ -1,10 +1,20 @@
 package pvc
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func testingroot() string {
+	wd, _ := os.Getwd()
+	return filepath.Join(wd, "testing")
+}
 
 func TestFileTreeBackendGetter(t *testing.T) {
 	tb := &fileTreeBackend{
-		rootPath: "./testing",
+		rootPath: testingroot(),
 	}
 	_, err := newFileTreeBackendGetter(tb)
 	if err != nil {
@@ -15,7 +25,7 @@ func TestFileTreeBackendGetter(t *testing.T) {
 func TestFileTreeBackendGetterGet(t *testing.T) {
 	expectedValue := "DrFeelgood"
 	tb := &fileTreeBackend{
-		rootPath: "testing",
+		rootPath: testingroot(),
 	}
 	tbg, err := newFileTreeBackendGetter(tb)
 	if err != nil {
@@ -31,3 +41,23 @@ func TestFileTreeBackendGetterGet(t *testing.T) {
 	}
 }
 
+func TestFileTreeBackendGetter_Get_FileTooLarge(t *testing.T) {
+	tb := &fileTreeBackend{
+		rootPath: testingroot(),
+	}
+	tbg, err := newFileTreeBackendGetter(tb)
+	if err != nil {
+		t.Fatalf("should have succeeded: %v", err)
+	}
+	sid := "username"
+	oldmax := MaxFileTreeFileSizeBytes
+	defer func() { MaxFileTreeFileSizeBytes = oldmax }()
+	MaxFileTreeFileSizeBytes = 2
+	_, err = tbg.Get(sid)
+	if err == nil {
+		t.Fatalf("should have returned an error")
+	}
+	if !strings.Contains(err.Error(), "file too large") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

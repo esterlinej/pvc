@@ -85,7 +85,10 @@ func WithMapping(mapping string) SecretsClientOption {
 	}
 }
 
-// WithFileTree enables the FileTreeBackend
+// WithFileTree enables the FileTreeBackend. With this backend, PVC reads one individual file per secret ID. Sub-paths
+// under the root should be implemented with directory separators in the secret ID.
+// The path that results from the root path + secret ID mapping will be read as the secret. This must be an absolute
+// filesystem path.
 func WithFileTreeBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
@@ -95,7 +98,7 @@ func WithFileTreeBackend() SecretsClientOption {
 	}
 }
 
-// WithFileTree enables the FileTreBackend
+// WithFileTreeRootPath sets the root path for the file tree backend. This must be an absolute path.
 func WithFileTreeRootPath(rootPath string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
