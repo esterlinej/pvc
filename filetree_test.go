@@ -39,6 +39,10 @@ func TestFileTreeBackendGetterGet(t *testing.T) {
 	if string(s) != expectedValue {
 		t.Fatalf("bad value: %v (expected %v)", string(s), expectedValue)
 	}
+	_, err = tbg.Get("invalid-path")
+	if err == nil {
+		t.Fatalf("expected a file not found error")
+	}
 }
 
 func TestFileTreeBackendGetter_Get_FileTooLarge(t *testing.T) {

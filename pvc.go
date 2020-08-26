@@ -63,9 +63,21 @@ type fileTreeBackend struct {
 	mapping  string
 }
 
+//go:generate stringer -type=backendType
+type backendType int
+
+const (
+	unknownBackendType backendType = iota
+	vaultBackendType
+	envVarBackendType
+	jsonBackendType
+	fileTreeBackendType
+)
+
 type secretsClientConfig struct {
 	mapping         string
 	backendCount    int
+	betype          backendType
 	vaultBackend    *vaultBackend
 	envVarBackend   *envVarBackend
 	jsonFileBackend *jsonFileBackend
@@ -91,9 +103,7 @@ func WithMapping(mapping string) SecretsClientOption {
 // filesystem path.
 func WithFileTreeBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		if s.fileTreeBackend == nil {
-			s.fileTreeBackend = &fileTreeBackend{}
-		}
+		s.betype = fileTreeBackendType
 		s.backendCount++
 	}
 }
@@ -111,9 +121,7 @@ func WithFileTreeRootPath(rootPath string) SecretsClientOption {
 // WithVaultBackend enables the Vault backend.
 func WithVaultBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		if s.vaultBackend == nil {
-			s.vaultBackend = &vaultBackend{}
-		}
+		s.betype = vaultBackendType
 		s.backendCount++
 	}
 }
@@ -242,9 +250,7 @@ func WithVaultValueKey(key string) SecretsClientOption {
 // WithEnvVarBackend enables the environment variable backend. Any characters in the secret ID that are not alphanumeric ASCII or underscores (legal env var characters) will be replaced by underscores after mapping.
 func WithEnvVarBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		if s.envVarBackend == nil {
-			s.envVarBackend = &envVarBackend{}
-		}
+		s.betype = envVarBackendType
 		s.backendCount++
 	}
 }
@@ -252,9 +258,7 @@ func WithEnvVarBackend() SecretsClientOption {
 // WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}.
 func WithJSONFileBackend() SecretsClientOption {
 	return func(s *secretsClientConfig) {
-		if s.jsonFileBackend == nil {
-			s.jsonFileBackend = &jsonFileBackend{}
-		}
+		s.betype = jsonBackendType
 		s.backendCount++
 	}
 }
@@ -276,12 +280,15 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 	for _, op := range ops {
 		op(config)
 	}
-	if config.backendCount != 1 {
+	if config.betype == unknownBackendType || config.backendCount != 1 {
 		return nil, fmt.Errorf("exactly one backend must be enabled")
 	}
 	sc := SecretsClient{}
-	switch {
-	case config.vaultBackend != nil:
+	switch config.betype {
+	case vaultBackendType:
+		if config.vaultBackend == nil {
+			config.vaultBackend = &vaultBackend{}
+		}
 		config.vaultBackend.mapping = config.mapping
 		vc, err := newVaultClient(config.vaultBackend)
 		if err != nil {
@@ -292,27 +299,38 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 			return nil, fmt.Errorf("error getting vault backend: %v", err)
 		}
 		sc.backend = vbe
-	case config.envVarBackend != nil:
+	case envVarBackendType:
+		if config.envVarBackend == nil {
+			config.envVarBackend = &envVarBackend{}
+		}
 		config.envVarBackend.mapping = config.mapping
 		ebe, err := newEnvVarBackendGetter(config.envVarBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error getting env var backend: %v", err)
 		}
 		sc.backend = ebe
-	case config.jsonFileBackend != nil:
+	case jsonBackendType:
+		if config.jsonFileBackend == nil {
+			config.jsonFileBackend = &jsonFileBackend{}
+		}
 		config.jsonFileBackend.mapping = config.mapping
 		jbe, err := newjsonFileBackendGetter(config.jsonFileBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error getting JSON file backend: %v", err)
 		}
 		sc.backend = jbe
-	case config.fileTreeBackend != nil:
+	case fileTreeBackendType:
+		if config.fileTreeBackend == nil {
+			config.fileTreeBackend = &fileTreeBackend{}
+		}
 		config.fileTreeBackend.mapping = config.mapping
 		ftg, err := newFileTreeBackendGetter(config.fileTreeBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error getting FileTree backend: %v", err)
 		}
 		sc.backend = ftg
+	default:
+		return nil, fmt.Errorf("invalid or unknown backend type: %v", config.betype)
 	}
 	return &sc, nil
 }

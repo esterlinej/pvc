@@ -33,7 +33,9 @@ func TestEnvVarBackendGetterGet(t *testing.T) {
 
 	sid := "MY_SECRET"
 	value := "foo"
-	os.Setenv(sid, value)
+	if err := os.Setenv(sid, value); err != nil {
+		t.Fatalf("error setting env var: %v", err)
+	}
 	defer os.Unsetenv(sid)
 
 	evb, err := newEnvVarBackendGetter(eb)
@@ -49,7 +51,9 @@ func TestEnvVarBackendGetterGet(t *testing.T) {
 		t.Fatalf("bad value: %v (expected %v)", string(s), value)
 	}
 
-	os.Setenv(sid, binarydata)
+	if err := os.Setenv(sid, binarydata); err != nil {
+		t.Fatalf("error setting env var: %v", err)
+	}
 	s, err = evb.Get(sid)
 	if err != nil {
 		t.Fatalf("binary get failed: %v", err)
@@ -67,7 +71,9 @@ func TestEnvVarBackendGetterGetFilteredName(t *testing.T) {
 	sid := "foo/bar_value"
 	envvar := "SECRET_FOO_BAR_VALUE"
 	value := "foo"
-	os.Setenv(envvar, value)
+	if err := os.Setenv(envvar, value); err != nil {
+		t.Fatalf("error setting env var: %v", err)
+	}
 	defer os.Unsetenv(envvar)
 
 	evb, err := newEnvVarBackendGetter(eb)

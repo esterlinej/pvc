@@ -147,6 +147,22 @@ func TestNewSecretsClientNoBackends(t *testing.T) {
 	}
 }
 
+func TestNewSecretsClientInvalidBackend(t *testing.T) {
+	badBackendType := func() SecretsClientOption {
+		return func(s *secretsClientConfig) {
+			s.betype = 9999 // invalid
+			s.backendCount++
+		}
+	}
+	_, err := NewSecretsClient(badBackendType())
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	if !strings.Contains(err.Error(), "invalid or unknown backend type") {
+		t.Fatalf("expected no backends error, received: %v", err)
+	}
+}
+
 func TestNewSecretMapper(t *testing.T) {
 	sc, err := newSecretMapper("foo/{{ .ID }}/bar")
 	if err != nil {
