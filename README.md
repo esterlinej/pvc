@@ -47,7 +47,7 @@ Example:
 
 ## Vault Authentication
 
-PVC supports token, Kubernetes, AppID (deprecated) and AppRole authentication.
+The Vault backend supports token, Kubernetes, and AppRole authentication.
 
 ## Example
 

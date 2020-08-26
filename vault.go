@@ -3,7 +3,6 @@ package pvc
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"time"
 
@@ -21,7 +20,6 @@ type VaultAuthentication int
 // Various Vault authentication methods
 const (
 	None    VaultAuthentication = iota // No authentication at all
-	AppID                              // AppID
 	Token                              // Token authentication
 	AppRole                            // AppRole
 	K8s                                // Kubernetes
@@ -45,11 +43,6 @@ func newVaultBackendGetter(vb *vaultBackend, vc vaultIO) (*vaultBackendGetter, e
 		err = vc.TokenAuth(vb.token)
 		if err != nil {
 			return nil, fmt.Errorf("error authenticating with supplied token: %v", err)
-		}
-	case AppID:
-		err = vc.AppIDAuth(vb.appid, vb.userid, vb.useridpath)
-		if err != nil {
-			return nil, fmt.Errorf("error performing AppID authentication: %v", err)
 		}
 	case AppRole:
 		return nil, fmt.Errorf("AppRole authentication not implemented")
@@ -90,7 +83,6 @@ func (vbg *vaultBackendGetter) Get(id string) ([]byte, error) {
 // vaultIO describes an object capable of interacting with Vault
 type vaultIO interface {
 	TokenAuth(token string) error
-	AppIDAuth(appid string, userid string, useridpath string) error
 	AppRoleAuth(roleid string) error
 	K8sAuth(jwt, roleid string) error
 	GetValue(path string) ([]byte, error)
@@ -164,25 +156,6 @@ func (c *vaultClient) getTokenAndConfirm(route string, payload interface{}) erro
 	auth := body["auth"].(map[string]interface{})
 	c.token = auth["client_token"].(string)
 	return nil
-}
-
-// appIDAuth attempts to perform app-id authorization.
-func (c *vaultClient) AppIDAuth(appid string, userid string, useridpath string) error {
-	if userid == "" {
-		uidb, err := ioutil.ReadFile(useridpath)
-		if err != nil {
-			return fmt.Errorf("error reading useridpath: %v: %v", useridpath, err)
-		}
-		userid = string(uidb)
-	}
-	bodystruct := struct {
-		AppID  string `json:"app_id"`
-		UserID string `json:"user_id"`
-	}{
-		AppID:  appid,
-		UserID: string(userid),
-	}
-	return c.getTokenAndConfirm("/v1/auth/app-id/login", &bodystruct)
 }
 
 func (c *vaultClient) AppRoleAuth(roleid string) error {

@@ -41,9 +41,6 @@ type vaultBackend struct {
 	token              string
 	k8sjwt             string
 	k8sauthpath        string
-	appid              string
-	userid             string
-	useridpath         string
 	roleid             string
 	mapping            string
 	valuekey           string
@@ -176,16 +173,6 @@ func WithVaultToken(token string) SecretsClientOption {
 	}
 }
 
-// WithVaultAppID sets the AppID to use when using AppID auth
-func WithVaultAppID(appid string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
-		if s.vaultBackend == nil {
-			s.vaultBackend = &vaultBackend{}
-		}
-		s.vaultBackend.appid = appid
-	}
-}
-
 // WithVaultK8sAuth sets the Kubernetes JWT and role to use for authentication
 func WithVaultK8sAuth(jwt, role string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
@@ -205,26 +192,6 @@ func WithVaultK8sAuthPath(path string) SecretsClientOption {
 			s.vaultBackend = &vaultBackend{}
 		}
 		s.vaultBackend.k8sauthpath = path
-	}
-}
-
-// WithVaultUserID sets the UserID to use when using AppID auth
-func WithVaultUserID(userid string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
-		if s.vaultBackend == nil {
-			s.vaultBackend = &vaultBackend{}
-		}
-		s.vaultBackend.userid = userid
-	}
-}
-
-// WithVaultUserIDPath sets the path to the file containing UserID when using AppID auth
-func WithVaultUserIDPath(useridpath string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
-		if s.vaultBackend == nil {
-			s.vaultBackend = &vaultBackend{}
-		}
-		s.vaultBackend.useridpath = useridpath
 	}
 }
 
