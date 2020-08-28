@@ -25,10 +25,9 @@ PVC makes some assumptions about how your secrets are stored in the various back
 
 - If using Vault, there must be exactly one key called "value" for any given secret path (this can be overridden with 
 `WithVaultValueKey("foo")`). The data associated with the value key will be retrieved and returned literally to the 
-client as a byte slice.
-- If using JSON or environment variables, the value will be treated as a string unless Base64-encoded prefixed with `Base64Prefix`, in which case 
-it will be decoded when retrieved. In both cases, the value is returned to the client as a byte slice. This allows binary secrets to be stored in
-backends that only hold strings.
+client as a byte slice. Binary values must be Base64-encoded.
+- If using JSON or environment variables, the value will be treated as a string and returned as a byte slice. Binary values
+should be Base64-encoded (same as Vault).
 - If using the file tree backend, you must supply an absolute root path which will be combined with the secret ID (after
 mapping). This file path will be read as the secret contents.
 
@@ -38,11 +37,14 @@ the [Vault Sidecar Injector](https://www.vaultproject.io/docs/platform/k8s/injec
 
 Example:
 
-    Root Path: /vault/secrets
-    Secret ID: webservice/production/db/password
-    Mapping: {{ .ID }}.txt
+    Given the following:
     
-    PVC would read this file during a Get() call:
+    -> Root Path: /vault/secrets
+    -> Secret ID: webservice/production/db/password
+    -> Mapping: {{ .ID }}.txt
+    
+    PVC would attempt to read this file when Get() is called:
+    
     /vault/secrets/webservice/production/db/password.txt
 
 ## Vault Authentication
@@ -67,17 +69,15 @@ func main() {
 	secret, _ := sc.Get("foo") // fetches the env var "SECRET_MYAPP_FOO"
 
 	// JSON file backend
-	sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend(), pvc.WithJSONFileLocation("secrets.json"))
+	sc, _ = pvc.NewSecretsClient(pvc.WithJSONFileBackend("secrets.json"))
 	secret, _ = sc.Get("foo") // fetches the value in secrets.json under the key "foo"
 
 	fmt.Printf("foo: %v\n", string(secret))
 
 	// Vault backend
 	sc, _ = pvc.NewSecretsClient(
-		pvc.WithVaultBackend(),
-		pvc.WithVaultAuthentication(pvc.Token),
+		pvc.WithVaultBackend(pvc.TokenVaultAuth, "http://vault.example.com:8200"),
 		pvc.WithVaultToken("some token"),
-		pvc.WithVaultHost("http://vault.example.com:8200"),
 		pvc.WithMapping("secret/development/{{ .ID }}"))
 	secret, _ = sc.Get("foo") // fetches the value from Vault (using token auth) from path secret/development/foo
 

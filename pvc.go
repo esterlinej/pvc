@@ -2,9 +2,9 @@ package pvc
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"html/template"
+	"path/filepath"
 	"strings"
 )
 
@@ -98,16 +98,10 @@ func WithMapping(mapping string) SecretsClientOption {
 // under the root should be implemented with directory separators in the secret ID.
 // The path that results from the root path + secret ID mapping will be read as the secret. This must be an absolute
 // filesystem path.
-func WithFileTreeBackend() SecretsClientOption {
+func WithFileTreeBackend(rootPath string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.betype = fileTreeBackendType
 		s.backendCount++
-	}
-}
-
-// WithFileTreeRootPath sets the root path for the file tree backend. This must be an absolute path.
-func WithFileTreeRootPath(rootPath string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
 		if s.fileTreeBackend == nil {
 			s.fileTreeBackend = &fileTreeBackend{}
 		}
@@ -115,31 +109,16 @@ func WithFileTreeRootPath(rootPath string) SecretsClientOption {
 	}
 }
 
-// WithVaultBackend enables the Vault backend.
-func WithVaultBackend() SecretsClientOption {
+// WithVaultBackend enables the Vault backend with the requested authentication type and host (ex: https//my.vault.com:8300)
+func WithVaultBackend(auth VaultAuthentication, host string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.betype = vaultBackendType
 		s.backendCount++
-	}
-}
-
-// WithVaultHost sets the Vault server host (eg, https//my.vault.com:8300)
-func WithVaultHost(host string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
-		if s.vaultBackend == nil {
-			s.vaultBackend = &vaultBackend{}
-		}
-		s.vaultBackend.host = host
-	}
-}
-
-// WithVaultAuthentication sets the Vault authentication method
-func WithVaultAuthentication(auth VaultAuthentication) SecretsClientOption {
-	return func(s *secretsClientConfig) {
 		if s.vaultBackend == nil {
 			s.vaultBackend = &vaultBackend{}
 		}
 		s.vaultBackend.authentication = auth
+		s.vaultBackend.host = host
 	}
 }
 
@@ -181,7 +160,6 @@ func WithVaultK8sAuth(jwt, role string) SecretsClientOption {
 		}
 		s.vaultBackend.k8sjwt = jwt
 		s.vaultBackend.roleid = role
-		s.vaultBackend.authentication = K8s
 	}
 }
 
@@ -223,20 +201,15 @@ func WithEnvVarBackend() SecretsClientOption {
 }
 
 // WithJSONFileBackend enables the JSON file backend. The file should contain a single JSON object associating a name with a value: { "mysecret": "pa55w0rd"}.
-func WithJSONFileBackend() SecretsClientOption {
+// Path is required and must be a valid path to the JSON file.
+func WithJSONFileBackend(path string) SecretsClientOption {
 	return func(s *secretsClientConfig) {
 		s.betype = jsonBackendType
 		s.backendCount++
-	}
-}
-
-// WithJSONFileLocation sets the location to the JSON file
-func WithJSONFileLocation(loc string) SecretsClientOption {
-	return func(s *secretsClientConfig) {
 		if s.jsonFileBackend == nil {
 			s.jsonFileBackend = &jsonFileBackend{}
 		}
-		s.jsonFileBackend.fileLocation = loc
+		s.jsonFileBackend.fileLocation = path
 	}
 }
 
@@ -256,8 +229,14 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 		if config.vaultBackend == nil {
 			config.vaultBackend = &vaultBackend{}
 		}
+		if config.vaultBackend.authentication == UnknownVaultAuth {
+			return nil, fmt.Errorf("vault backend requires an authentication type")
+		}
+		if config.vaultBackend.host == "" {
+			return nil, fmt.Errorf("vault host is required")
+		}
 		config.vaultBackend.mapping = config.mapping
-		vc, err := newVaultClient(config.vaultBackend)
+		vc, err := getVaultClient(config.vaultBackend)
 		if err != nil {
 			return nil, fmt.Errorf("error creating vault client: %v", err)
 		}
@@ -280,6 +259,9 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 		if config.jsonFileBackend == nil {
 			config.jsonFileBackend = &jsonFileBackend{}
 		}
+		if config.jsonFileBackend.fileLocation == "" {
+			return nil, fmt.Errorf("json file location is required")
+		}
 		config.jsonFileBackend.mapping = config.mapping
 		jbe, err := newjsonFileBackendGetter(config.jsonFileBackend)
 		if err != nil {
@@ -289,6 +271,12 @@ func NewSecretsClient(ops ...SecretsClientOption) (*SecretsClient, error) {
 	case fileTreeBackendType:
 		if config.fileTreeBackend == nil {
 			config.fileTreeBackend = &fileTreeBackend{}
+		}
+		if config.fileTreeBackend.rootPath == "" {
+			return nil, fmt.Errorf("filetree backend requires a root path")
+		}
+		if !filepath.IsAbs(config.fileTreeBackend.rootPath) {
+			return nil, fmt.Errorf("filetree root path must be absolute: %v", config.fileTreeBackend.rootPath)
 		}
 		config.fileTreeBackend.mapping = config.mapping
 		ftg, err := newFileTreeBackendGetter(config.fileTreeBackend)
@@ -335,15 +323,4 @@ func (sm *secretMapper) MapSecret(id string) (string, error) {
 		return "", fmt.Errorf("error executing mapping template: %v", err)
 	}
 	return string(b.Bytes()), nil
-}
-
-// Base64Prefix is used as a prefix used to indicate binary secrets in JSON/Envvar backends
-const Base64Prefix = "__BASE64__:"
-
-func IsBase64Encoded(s string) bool {
-	return strings.HasPrefix(s, Base64Prefix)
-}
-
-func Base64Decode(s string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(strings.Replace(s, Base64Prefix, "", 1))
 }

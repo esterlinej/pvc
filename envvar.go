@@ -56,12 +56,5 @@ func (ebg *envVarBackendGetter) Get(id string) ([]byte, error) {
 	if !exists {
 		return nil, fmt.Errorf("secret not found: %v", vname)
 	}
-	if IsBase64Encoded(val) {
-		d, err := Base64Decode(val)
-		if err != nil {
-			return nil, fmt.Errorf("error decoding base64 value: %v", err)
-		}
-		return d, nil
-	}
 	return []byte(val), nil
 }

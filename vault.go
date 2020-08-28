@@ -17,12 +17,12 @@ const (
 // VaultAuthentication enumerates the supported Vault authentication methods
 type VaultAuthentication int
 
-// Various Vault authentication methods
+// Supported Vault authentication methods
 const (
-	None    VaultAuthentication = iota // No authentication at all
-	Token                              // Token authentication
-	AppRole                            // AppRole
-	K8s                                // Kubernetes
+	UnknownVaultAuth VaultAuthentication = iota // Unknown/unset
+	TokenVaultAuth                              // Token authentication
+	AppRoleVaultAuth                            // AppRole
+	K8sVaultAuth                                // Kubernetes
 )
 
 type vaultBackendGetter struct {
@@ -37,16 +37,14 @@ func newVaultBackendGetter(vb *vaultBackend, vc vaultIO) (*vaultBackendGetter, e
 		return nil, fmt.Errorf("Vault host is required")
 	}
 	switch vb.authentication {
-	case None:
-		break
-	case Token:
+	case TokenVaultAuth:
 		err = vc.TokenAuth(vb.token)
 		if err != nil {
 			return nil, fmt.Errorf("error authenticating with supplied token: %v", err)
 		}
-	case AppRole:
+	case AppRoleVaultAuth:
 		return nil, fmt.Errorf("AppRole authentication not implemented")
-	case K8s:
+	case K8sVaultAuth:
 		err = vc.K8sAuth(vb.k8sjwt, vb.roleid)
 		if err != nil {
 			return nil, fmt.Errorf("error performing Kubernetes authentication: %v", err)
@@ -97,8 +95,13 @@ type vaultClient struct {
 
 var _ vaultIO = &vaultClient{}
 
+type vaultClientFactory func(config *vaultBackend) (vaultIO, error)
+
+// Allow tests to override and supply a fake vault client
+var getVaultClient vaultClientFactory = newVaultClient
+
 // newVaultClient returns a vaultClient object or error
-func newVaultClient(config *vaultBackend) (*vaultClient, error) {
+func newVaultClient(config *vaultBackend) (vaultIO, error) {
 	vc := vaultClient{}
 	c, err := api.NewClient(&api.Config{Address: config.host})
 	vc.client = c

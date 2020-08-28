@@ -49,13 +49,6 @@ func (jbg *jsonFileBackendGetter) Get(id string) ([]byte, error) {
 		return nil, fmt.Errorf("error mapping id to object key: %v", err)
 	}
 	if val, ok := jbg.contents[key]; ok {
-		if IsBase64Encoded(val) {
-			d, err := Base64Decode(val)
-			if err != nil {
-				return nil, fmt.Errorf("error decoding base64 value: %v", err)
-			}
-			return d, nil
-		}
 		return []byte(val), nil
 	}
 	return nil, fmt.Errorf("secret not found: %v", key)
