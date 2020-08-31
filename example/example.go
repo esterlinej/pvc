@@ -31,7 +31,7 @@ func getEnvClient() *pvc.SecretsClient {
 
 // secrets.json
 func getJSONClient() *pvc.SecretsClient {
-	sc, err := pvc.NewSecretsClient(pvc.WithJSONFileBackend(), pvc.WithJSONFileLocation("secrets.json")) // default mapping is fine
+	sc, err := pvc.NewSecretsClient(pvc.WithJSONFileBackend("secrets.json")) // default mapping is fine
 	if err != nil {
 		fatal("error getting client: %v", err)
 	}
@@ -39,7 +39,10 @@ func getJSONClient() *pvc.SecretsClient {
 }
 
 func getVaultClient() *pvc.SecretsClient {
-	sc, err := pvc.NewSecretsClient(pvc.WithVaultBackend(), pvc.WithVaultAuthentication(pvc.Token), pvc.WithVaultToken(vaultToken), pvc.WithVaultHost(vaultHost), pvc.WithMapping("secret/development/{{ .ID }}"))
+	sc, err := pvc.NewSecretsClient(
+		pvc.WithVaultBackend(pvc.TokenVaultAuth, vaultHost),
+		pvc.WithVaultToken(vaultToken),
+		pvc.WithMapping("secret/development/{{ .ID }}"))
 	if err != nil {
 		fatal("error getting client: %v", err)
 	}
@@ -50,14 +53,14 @@ func getVaultClient() *pvc.SecretsClient {
 func getSecrets(sc *pvc.SecretsClient) {
 	foo, err := sc.Get("foo")
 	if err != nil {
-		fatal("error getting secret")
+		fatal("error getting secret: foo: %v", err)
 	}
-	fmt.Printf("secret named 'foo': %v\n", foo)
-	bar, err := sc.Get("bar")
+	fmt.Printf("secret named 'foo': %v\n", string(foo))
+	biz, err := sc.Get("biz")
 	if err != nil {
-		fatal("error getting secret")
+		fatal("error getting secret: biz: %v", err)
 	}
-	fmt.Printf("secret named 'bar': %v\n", bar)
+	fmt.Printf("secret named 'biz': %v\n", string(biz))
 }
 
 func main() {

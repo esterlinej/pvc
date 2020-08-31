@@ -30,7 +30,9 @@ func TestEnvVarBackendGetterGet(t *testing.T) {
 
 	sid := "MY_SECRET"
 	value := "foo"
-	os.Setenv(sid, value)
+	if err := os.Setenv(sid, value); err != nil {
+		t.Fatalf("error setting env var: %v", err)
+	}
 	defer os.Unsetenv(sid)
 
 	evb, err := newEnvVarBackendGetter(eb)
@@ -55,7 +57,9 @@ func TestEnvVarBackendGetterGetFilteredName(t *testing.T) {
 	sid := "foo/bar_value"
 	envvar := "SECRET_FOO_BAR_VALUE"
 	value := "foo"
-	os.Setenv(envvar, value)
+	if err := os.Setenv(envvar, value); err != nil {
+		t.Fatalf("error setting env var: %v", err)
+	}
 	defer os.Unsetenv(envvar)
 
 	evb, err := newEnvVarBackendGetter(eb)

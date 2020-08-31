@@ -5,8 +5,33 @@ import (
 	"testing"
 )
 
+type fakeVaultIO struct{}
+
+func (fv *fakeVaultIO) TokenAuth(token string) error {
+	return nil
+}
+func (fv *fakeVaultIO) AppRoleAuth(roleid string) error {
+	return nil
+}
+func (fv *fakeVaultIO) K8sAuth(jwt, roleid string) error {
+	return nil
+}
+func (fv *fakeVaultIO) GetValue(path string) ([]byte, error) {
+	return nil, nil
+}
+
+func newFakeVaultClient(_ *vaultBackend) (vaultIO, error) {
+	return &fakeVaultIO{}, nil
+}
+
+var _ vaultIO = &fakeVaultIO{}
+
 func TestNewSecretsClientVaultBackend(t *testing.T) {
-	sc, err := NewSecretsClient(WithVaultBackend(), WithVaultHost("foo"), WithVaultAuthentication(None))
+	getVaultClient = newFakeVaultClient
+	defer func() { getVaultClient = newVaultClient }()
+	sc, err := NewSecretsClient(
+		WithVaultBackend(TokenVaultAuth, "foo"),
+	)
 	if err != nil {
 		t.Fatalf("error getting SecretsClient: %v", err)
 	}
@@ -22,11 +47,12 @@ func TestNewSecretsClientVaultBackend(t *testing.T) {
 }
 
 func TestNewSecretsClientVaultBackendOptionOrdering(t *testing.T) {
+	getVaultClient = newFakeVaultClient
+	defer func() { getVaultClient = newVaultClient }()
 	ops := []SecretsClientOption{
-		WithVaultAuthentication(None),
-		WithVaultHost("asdf"),
+		WithVaultAuthRetries(2),
 		WithMapping("{{ .ID }}"),
-		WithVaultBackend(),
+		WithVaultBackend(TokenVaultAuth, "foo"),
 	}
 	sc, err := NewSecretsClient(ops...)
 	if err != nil {
@@ -46,8 +72,7 @@ func TestNewSecretsClientVaultBackendOptionOrdering(t *testing.T) {
 func TestNewSecretsClientJSONFileBackendOptionOrdering(t *testing.T) {
 	ops := []SecretsClientOption{
 		WithMapping("{{ .ID }}"),
-		WithJSONFileLocation("example/secrets.json"),
-		WithJSONFileBackend(),
+		WithJSONFileBackend("example/secrets.json"),
 	}
 	sc, err := NewSecretsClient(ops...)
 	if err != nil {
@@ -101,7 +126,9 @@ func TestNewSecretsClientEnvVarBackend(t *testing.T) {
 }
 
 func TestNewSecretsClientJSONFileBackend(t *testing.T) {
-	sc, err := NewSecretsClient(WithJSONFileBackend(), WithJSONFileLocation("example/secrets.json"))
+	sc, err := NewSecretsClient(
+		WithJSONFileBackend("example/secrets.json"),
+	)
 	if err != nil {
 		t.Fatalf("error getting SecretsClient: %v", err)
 	}
@@ -118,7 +145,9 @@ func TestNewSecretsClientJSONFileBackend(t *testing.T) {
 
 func TestWithMapping(t *testing.T) {
 	mapping := "{{ .ID }}"
-	sc, err := NewSecretsClient(WithJSONFileBackend(), WithJSONFileLocation("example/secrets.json"), WithMapping(mapping))
+	sc, err := NewSecretsClient(
+		WithJSONFileBackend("example/secrets.json"),
+		WithMapping(mapping))
 	if err != nil {
 		t.Fatalf("error getting SecretsClient: %v", err)
 	}
@@ -128,7 +157,10 @@ func TestWithMapping(t *testing.T) {
 }
 
 func TestNewSecretsClientMultipleBackends(t *testing.T) {
-	_, err := NewSecretsClient(WithVaultBackend(), WithEnvVarBackend(), WithJSONFileBackend())
+	_, err := NewSecretsClient(
+		WithVaultBackend(TokenVaultAuth, "foo"),
+		WithEnvVarBackend(),
+		WithJSONFileBackend("example/secrets.json"))
 	if err == nil {
 		t.Fatalf("should have failed")
 	}
@@ -143,6 +175,22 @@ func TestNewSecretsClientNoBackends(t *testing.T) {
 		t.Fatalf("should have failed")
 	}
 	if !strings.Contains(err.Error(), "exactly one") {
+		t.Fatalf("expected no backends error, received: %v", err)
+	}
+}
+
+func TestNewSecretsClientInvalidBackend(t *testing.T) {
+	badBackendType := func() SecretsClientOption {
+		return func(s *secretsClientConfig) {
+			s.betype = 9999 // invalid
+			s.backendCount++
+		}
+	}
+	_, err := NewSecretsClient(badBackendType())
+	if err == nil {
+		t.Fatalf("should have failed")
+	}
+	if !strings.Contains(err.Error(), "invalid or unknown backend type") {
 		t.Fatalf("expected no backends error, received: %v", err)
 	}
 }
